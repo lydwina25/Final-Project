@@ -1,0 +1,336 @@
+import tkinter as tk
+from tkinter import ttk
+from PIL import Image, ImageTk
+import os
+import sqlite3
+
+# Function to create the database table if it doesn't exist
+def create_table():
+    try:
+        conn = sqlite3.connect("data.db")
+        cursor = conn.cursor()
+        cursor.execute("""CREATE TABLE IF NOT EXISTS
+                        inventory(itemId TEXT, itemname TEXT, itemcourse TEXT, itemfinalgrade TEXT)""")
+        conn.commit()
+    except sqlite3.Error as e:
+        print("Error occurred:", e)
+    finally:
+        conn.close()
+
+create_table()
+
+# Functions for CRUD operations
+def insert(id, fullname, course, finalgrade):
+    try:
+        conn = sqlite3.connect("data.db")
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO inventory VALUES(?, ?, ?, ?)", (id, fullname, course, finalgrade))
+        conn.commit()
+    except sqlite3.Error as e:
+        print("Error occurred:", e)
+    finally:
+        conn.close()
+
+def delete(data):
+    try:
+        conn = sqlite3.connect("data.db")
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM inventory WHERE itemId=?", (data,))
+        conn.commit()
+    except sqlite3.Error as e:
+        print("Error occurred:", e)
+    finally:
+        conn.close()
+
+def update(id, fullname, course, finalgrade):
+    try:
+        conn = sqlite3.connect("data.db")
+        cursor = conn.cursor()
+        cursor.execute("UPDATE inventory SET itemname=?, itemcourse=?, itemfinalgrade=? WHERE itemId=?", (fullname, course, finalgrade, id))
+        conn.commit()
+    except sqlite3.Error as e:
+        print("Error occurred:", e)
+    finally:
+        conn.close()
+
+def read():
+    try:
+        conn = sqlite3.connect("data.db")
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM inventory")
+        results = cursor.fetchall()
+        conn.commit()
+        return results
+    except sqlite3.Error as e:
+        print("Error occurred:", e)
+        return []
+    finally:
+        conn.close()
+
+def insert_data():
+    itemStudid = entryStudid.get().strip()
+    itemName = entryname.get().strip()
+    itemCourse = entrycourse.get().strip()
+    itemFinalgrade = entryfinalgrade.get().strip()
+
+    if not itemStudid:
+        print("Error Inserting Id")
+    elif not itemName:
+        print("Error Inserting fullname")
+    elif not itemCourse:
+        print("Error Inserting Course")
+    elif not itemFinalgrade:
+        print("Error Inserting Finalgrade")
+    else:
+        insert(itemStudid, itemName, itemCourse, itemFinalgrade)
+        refresh_treeview()
+        clear_entries()
+
+def update_data():
+    selected_item = my_tree.selection()
+    if not selected_item:
+        print("No item selected")
+        return
+    update_id = my_tree.item(selected_item[0])['values'][0]
+    update(entryStudid.get(), entryname.get(), entrycourse.get(), entryfinalgrade.get())
+    refresh_treeview()
+
+def delete_data():
+    selected_item = my_tree.selection()
+    if not selected_item:
+        print("No item selected")
+        return
+    delete_id = my_tree.item(selected_item[0])['values'][0]
+    delete(delete_id)
+    refresh_treeview()
+
+def refresh_treeview():
+    for data in my_tree.get_children():
+        my_tree.delete(data)
+    for result in read():
+        my_tree.insert(parent='', index='end', iid=result[0], text="", values=result, tag="orow")
+    my_tree.tag_configure('orow', background="#32a895", font=('Arial bold', 15))
+
+def clear_entries():
+    entryStudid.delete(0, tk.END)
+    entryname.delete(0, tk.END)
+    entrycourse.delete(0, tk.END)
+    entryfinalgrade.delete(0, tk.END)
+
+def show_gradebook_screen():
+    login_screen.withdraw()
+    gradebook_screen.deiconify()
+
+def logout():
+    gradebook_screen.withdraw()
+    main_screen.deiconify()
+
+def register_user():
+    username_info = username.get()
+    password_info = password.get()
+
+    if username_info and password_info:
+        file = open(username_info, "w")
+        file.write(username_info + "\n")
+        file.write(password_info)
+        file.close()
+
+        username_entry.delete(0, tk.END)
+        password_entry.delete(0, tk.END)
+
+        tk.Label(register_screen, text="Registration Success", fg="green", font=("calibri", 11)).pack()
+    else:
+        tk.Label(register_screen, text="Please fill all fields", fg="red", font=("calibri", 11)).pack()
+
+def login_verify():
+    username1 = username_verify.get()
+    password1 = password_verify.get()
+    username_login_entry.delete(0, tk.END)
+    password_login_entry.delete(0, tk.END)
+
+    list_of_files = os.listdir()
+    if username1 in list_of_files:
+        file1 = open(username1, "r")
+        verify = file1.read().splitlines()
+        if password1 in verify:
+            show_gradebook_screen()
+        else:
+            password_not_recognised()
+    else:
+        user_not_found()
+
+def password_not_recognised():
+    global password_not_recog_screen
+    password_not_recog_screen = tk.Toplevel(login_screen)
+    password_not_recog_screen.title("Error")
+    password_not_recog_screen.geometry("150x100")
+    tk.Label(password_not_recog_screen, text="Invalid Password").pack()
+    tk.Button(password_not_recog_screen, text="OK", command=password_not_recog_screen.destroy).pack()
+
+def user_not_found():
+    global user_not_found_screen
+    user_not_found_screen = tk.Toplevel(login_screen)
+    user_not_found_screen.title("Error")
+    user_not_found_screen.geometry("150x100")
+    tk.Label(user_not_found_screen, text="User Not Found").pack()
+    tk.Button(user_not_found_screen, text="OK", command=user_not_found_screen.destroy).pack()
+
+# Main application window
+main_screen = tk.Tk()
+main_screen.geometry("1000x400")
+main_screen.title("Account Login")
+
+# Load background image for main screen
+bg_image_path_main = r"c:\Users\Dell\Downloads\Free-Wallpapers-Anime-Landscape.jpg"
+if os.path.exists(bg_image_path_main):
+    bg_image_main = Image.open(bg_image_path_main)
+    bg_photo_main = ImageTk.PhotoImage(bg_image_main)
+    bg_label_main = tk.Label(main_screen, image=bg_photo_main)
+    bg_label_main.image = bg_photo_main  # Keep a reference to avoid garbage collection
+    bg_label_main.place(x=0, y=0, relwidth=1, relheight=1)
+else:
+    print(f"Error: The file at {bg_image_path_main} does not exist.")
+
+tk.Label(main_screen, text="Select Your Choice", bg="#007FFF", fg="black", width="30", height="2", font=("Times New Roman", 16)).pack(pady=10)
+tk.Label(main_screen, text="").pack()
+tk.Button(main_screen, text="Login", height="2", width="30", font=("Times New Roman", 14), command=lambda: login_screen.deiconify(), bg="#007FFF", fg="black").pack(pady=10)
+tk.Label(main_screen, text="").pack()
+tk.Button(main_screen, text="Register", height="2", width="30", font=("Times New Roman", 14), command=lambda: register_screen.deiconify(), bg="#007FFF", fg="black").pack(pady=10)
+
+# Login screen
+login_screen = tk.Toplevel(main_screen)
+login_screen.title("Login")
+login_screen.geometry("1000x400")
+login_screen.withdraw()
+
+# Load background image for login screen
+bg_image_path_login = r"c:\Users\Dell\Downloads\Free-Wallpapers-Anime-Landscape.jpg"
+if os.path.exists(bg_image_path_login):
+    bg_image_login = Image.open(bg_image_path_login)
+    bg_photo_login = ImageTk.PhotoImage(bg_image_login)
+    bg_label_login = tk.Label(login_screen, image=bg_photo_login)
+    bg_label_login.image = bg_photo_login  # Keep a reference to avoid garbage collection
+    bg_label_login.place(x=0, y=0, relwidth=1, relheight=1)
+else:
+    print(f"Error: The file at {bg_image_path_login} does not exist.")
+
+tk.Label(login_screen, text="Please enter details below to login", font=("Times New Roman", 16), bg=("lightblue"), fg="black").pack(pady=10)
+tk.Label(login_screen, text="").pack()
+
+username_verify = tk.StringVar()
+password_verify = tk.StringVar()
+
+tk.Label(login_screen, text="Username", font=("Times New Roman", 14), bg="light blue", fg="black").pack(pady=5)
+username_login_entry = tk.Entry(login_screen, textvariable=username_verify, font=("Times New Roman", 14))
+username_login_entry.pack(pady=5)
+tk.Label(login_screen, text="Password", font=("Times New Roman", 14), bg="light blue", fg="black").pack(pady=5)
+password_login_entry = tk.Entry(login_screen, textvariable=password_verify, show='*', font=("Times New Roman", 14))
+password_login_entry.pack(pady=5)
+tk.Button(login_screen, text="Login", width=10, height=1, font=("Times New Roman", 14), command=login_verify, bg="light blue", fg="black").pack(pady=10)
+
+# Register screen
+register_screen = tk.Toplevel(main_screen)
+register_screen.title("Register")
+register_screen.geometry("1000x400")
+register_screen.withdraw()
+
+# Load background image for register screen
+bg_image_path_register = r"c:\Users\Dell\Downloads\Free-Wallpapers-Anime-Landscape.jpg"
+if os.path.exists(bg_image_path_register):
+    bg_image_register = Image.open(bg_image_path_register)
+    bg_photo_register = ImageTk.PhotoImage(bg_image_register)
+    bg_label_register = tk.Label(register_screen, image=bg_photo_register)
+    bg_label_register.image = bg_photo_register  # Keep a reference to avoid garbage collection
+    bg_label_register.place(x=0, y=0, relwidth=1, relheight=1)
+else:
+    print(f"Error: The file at {bg_image_path_register} does not exist.")
+
+username = tk.StringVar()
+password = tk.StringVar()
+
+tk.Label(register_screen, text="Please enter details below", font=("Times New Roman", 16), bg=("lightblue"), fg="black").pack(pady=10)
+tk.Label(register_screen, text="Username", font=("Times New Roman", 14), bg="lightblue").pack(pady=5)
+username_entry = tk.Entry(register_screen, textvariable=username, font=("Times New Roman", 14))
+username_entry.pack(pady=5)
+tk.Label(register_screen, text="Password", font=("Times New Roman", 14), bg=("lightblue"), fg="black").pack(pady=5)
+password_entry = tk.Entry(register_screen, textvariable=password, show='*', font=("Times New Roman", 14))
+password_entry.pack(pady=5)
+tk.Button(register_screen, text="Register", width=10, height=1, font=("Times New Roman", 14), bg="light blue", fg="black", command=register_user).pack(pady=10)
+
+# Gradebook screen
+gradebook_screen = tk.Toplevel(main_screen)
+gradebook_screen.title("Student Gradebook System")
+gradebook_screen.geometry("1200x400")
+gradebook_screen.withdraw()
+
+# Load background image for gradebook screen
+bg_image_path_gradebook = r"c:\Users\Dell\Downloads\Free-Wallpapers-Anime-Landscape.jpg"
+if os.path.exists(bg_image_path_gradebook):
+    bg_image_gradebook = Image.open(bg_image_path_gradebook)
+    bg_photo_gradebook = ImageTk.PhotoImage(bg_image_gradebook)
+    bg_label_gradebook = tk.Label(gradebook_screen, image=bg_photo_gradebook)
+    bg_label_gradebook.image = bg_photo_gradebook  # Keep a reference to avoid garbage collection
+    bg_label_gradebook.place(x=0, y=0, relwidth=1, relheight=1)
+else:
+    print(f"Error: The file at {bg_image_path_gradebook} does not exist.")
+
+gradebook = "Student Gradebook"
+
+# Create widgets
+titleLabel = tk.Label(gradebook_screen, text=gradebook, font=('Times New Roman bold', 30), bd=2, bg="light blue", fg="black")
+titleLabel.grid(row=0, column=0, columnspan=20, padx=20, pady=20)
+
+studidLabel = tk.Label(gradebook_screen, text="Student ID:", font=('Times New Roman bold', 20), bg="light blue", fg="black")
+nameLabel = tk.Label(gradebook_screen, text="Full Name:", font=('Times New Roman bold', 20), bg="light blue", fg="black")
+courseLabel = tk.Label(gradebook_screen, text="Course:", font=('Times New Roman bold', 20), bg="light blue", fg="black")
+finalgradeLabel = tk.Label(gradebook_screen, text="Final Grade:", font=('Times New Roman bold', 20), bg="light blue", fg="black")
+
+studidLabel.grid(row=1, column=0, padx=10, pady=10)
+nameLabel.grid(row=2, column=0, padx=10, pady=10)
+courseLabel.grid(row=3, column=0, padx=10, pady=10)
+finalgradeLabel.grid(row=4, column=0, padx=10, pady=10)
+
+entryStudid = tk.Entry(gradebook_screen, width=30, bd=5, font=('Times New Roman bold', 15))
+entryname = tk.Entry(gradebook_screen, width=30, bd=5, font=('Times New Roman bold', 15))
+entrycourse = tk.Entry(gradebook_screen, width=30, bd=5, font=('Times New Roman bold', 15))
+entryfinalgrade = tk.Entry(gradebook_screen, width=30, bd=5, font=('Times New Roman bold', 15))
+
+entryStudid.grid(row=1, column=1, columnspan=4, padx=5, pady=10)
+entryname.grid(row=2, column=1, columnspan=4, padx=5, pady=10)
+entrycourse.grid(row=3, column=1, columnspan=4, padx=5, pady=10)
+entryfinalgrade.grid(row=4, column=1, columnspan=4, padx=5, pady=10)
+
+buttonEnter = tk.Button(gradebook_screen, text="Enter", padx=5, pady=5, width=5, bd=3, font=('Times New Roman bold', 15), bg="#32a8a4", command=insert_data)
+buttonEnter.grid(row=5, column=1, columnspan=1)
+
+buttonUpdate = tk.Button(gradebook_screen, text="Update", padx=5, pady=5, width=5, bd=3, font=('Times New Roman bold', 15), bg="#32a8a4", command=update_data)
+buttonUpdate.grid(row=5, column=2, columnspan=1)
+
+buttonDelete = tk.Button(gradebook_screen, text="Delete", padx=5, pady=5, width=5, bd=3,font=('Times New Roman bold', 15), bg="#32a8a4", command=delete_data)
+buttonDelete.grid(row=5, column=3, columnspan=1)
+
+buttonLogout = tk.Button(gradebook_screen, text="Logout", padx=5, pady=5, bd=3, font=('Times  New Roman bold', 15), bg="red", fg="white", command=logout)
+buttonLogout.grid(row=5, column=4, columnspan=1)
+
+# Configure Treeview
+style = ttk.Style()
+style.configure("Treeview.Heading", font=('Times New Roman bold', 15))
+
+my_tree = ttk.Treeview(gradebook_screen, columns=('Studid', 'Fullname', 'Course', 'Finalgrade'), show='headings')
+my_tree.column("Studid", anchor=tk.W, width=200)
+my_tree.column("Fullname", anchor=tk.W, width=200)
+my_tree.column("Course", anchor=tk.W, width=150)
+my_tree.column("Finalgrade", anchor=tk.W, width=200)
+
+my_tree.heading("Studid", text="Student ID", anchor=tk.W)
+my_tree.heading("Fullname", text="Full Name", anchor=tk.W)
+my_tree.heading("Course", text="Course", anchor=tk.W)
+my_tree.heading("Finalgrade", text="FinalGrade", anchor=tk.W)
+
+my_tree.tag_configure('orow', background="#EEEEEE", font=('Times New Roman', 15))
+my_tree.grid(row=1, column=5, columnspan=4, rowspan=5, padx=10, pady=10)
+
+# Load initial data into Treeview
+refresh_treeview()
+
+main_screen.mainloop()
